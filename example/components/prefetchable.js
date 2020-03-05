@@ -1,6 +1,7 @@
 import { Component, createRef, Fragment } from "react";
 import PriorityQueue from "../../src/priority-queue";
 
+const prefetchedElements = new Set();
 const priorityQueue = new PriorityQueue({
   compare: (a, b) => {
     if (a.priority > b.priority) return -1;
@@ -20,19 +21,6 @@ const ghostStyle = {
   visibility: "hidden",
   display: "none"
 };
-
-let intersectionObserver;
-if (process.browser) {
-  window.priorityQueue = priorityQueue;
-  intersectionObserver = new IntersectionObserver(
-    (changes, observer) => {
-      console.log("changes", changes);
-    },
-    { threshold: 1 }
-  );
-}
-
-let wasPrefetchRendered = null;
 
 class PrefetchBlock extends Component {
   state = {
@@ -66,7 +54,6 @@ class PrefetchBlock extends Component {
 
   handlePrefetchLoad = () => {
     console.log("load prefetch link");
-    this.state.curOnLoadCallback();
     if (priorityQueue.size > 0) {
       this._getNextFromPriorityQueue();
     } else {
@@ -75,8 +62,6 @@ class PrefetchBlock extends Component {
   };
 
   handlePrefetchError = error => {
-    this.state.curOnErrorCallback(error);
-    console.log("prefech link handle erro", error);
     if (priorityQueue.size > 0) {
       this._getNextFromPriorityQueue();
     } else {
@@ -102,8 +87,14 @@ class PrefetchBlock extends Component {
         key={link.key}
         rel="prefetch"
         href={link.href}
-        onLoad={link.onLoad}
-        onError={link.onError}
+        onLoad={() => {
+          this.handlePrefetchLoad();
+          link.onLoad();
+        }}
+        onError={() => {
+          this.handlePrefetchError();
+          link.onError();
+        }}
       />
     ));
   }
@@ -128,17 +119,38 @@ class Prefetchable extends Component {
 
   ref = createRef();
 
+  child = null;
+
   constructor(props) {
     super(props);
   }
 
   componentDidMount() {
     const domNode = this.ref.current;
-    const child = domNode.nextSibling;
-    const link = getLink(child);
-    if (link) {
-      intersectionObserver.observe(child);
+    this.child = domNode.nextSibling;
 
+    this.intersectionObserver = new IntersectionObserver(
+      this.handleChildViewportIntersection,
+      { threshold: 1 }
+    );
+
+    this.intersectionObserver.observe(this.child);
+  }
+
+  componentWillUnmount() {
+    this.intersectionObserver.unobserve(this.child);
+  }
+
+  handleChildViewportIntersection = changes => {
+    console.log("changes", changes);
+
+    changes.forEach(change => {
+      if (!change.isIntersecting) return;
+
+      const link = getLink(this.child);
+      if (!link) return;
+
+      console.log("push");
       priorityQueue.push({
         priority: Math.random(),
         href: link,
@@ -147,8 +159,10 @@ class Prefetchable extends Component {
         onStart: this.handlePrefetchStart,
         key: Math.random()
       });
-    }
-  }
+
+      this.intersectionObserver.unobserve(this.child);
+    });
+  };
 
   handlePrefetchStart = () => {
     console.log("start");
@@ -160,8 +174,7 @@ class Prefetchable extends Component {
     this.setState({ prefetchStatus: "loaded" });
   };
 
-  handlePrefetchError = error => {
-    console.log("error", error.nativeEvent);
+  handlePrefetchError = () => {
     this.setState({ prefetchStatus: "error" });
   };
 

@@ -19,7 +19,8 @@ const rowStyle = {
 
 const linkBaseStyle = {
   display: "block",
-  height: "100%"
+  height: "100%",
+  transition: "all 0.25s ease-in"
 };
 
 function getBackgroundColor(prefetchStatus) {
@@ -61,17 +62,63 @@ const Home = () => (
           </a>
         )}
       </Prefetchable>
+    </div>
+    <div style={{ ...rowStyle, height: "600px" }}>
       <Prefetchable>
         {prefetchStatus => (
           <a
-            href="/error"
+            href="/one"
             style={{
               ...linkBaseStyle,
-              width: "calc(30% - 5px)",
+              width: "calc(33% - 5px)",
               backgroundColor: getBackgroundColor(prefetchStatus)
             }}
           >
-            Error
+            One
+          </a>
+        )}
+      </Prefetchable>
+      <Prefetchable>
+        {prefetchStatus => (
+          <a
+            href="/one"
+            style={{
+              ...linkBaseStyle,
+              width: "calc(33% - 5px)",
+              backgroundColor: getBackgroundColor(prefetchStatus)
+            }}
+          >
+            One
+          </a>
+        )}
+      </Prefetchable>
+      <Prefetchable>
+        {prefetchStatus => (
+          <a
+            href="/one"
+            style={{
+              ...linkBaseStyle,
+              width: "calc(33% - 5px)",
+              backgroundColor: getBackgroundColor(prefetchStatus)
+            }}
+          >
+            One
+          </a>
+        )}
+      </Prefetchable>
+    </div>
+    <div style={{ ...rowStyle, height: "600px" }}>
+      <Prefetchable>
+        {prefetchStatus => (
+          <a
+            href="/one"
+            style={{
+              ...linkBaseStyle,
+              width: "calc(100%)",
+              backgroundColor: getBackgroundColor(prefetchStatus)
+            }}
+          >
+            One
           </a>
         )}
       </Prefetchable>
