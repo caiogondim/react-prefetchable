@@ -152,7 +152,8 @@ class Prefetchable extends Component {
 
       console.log("push");
       priorityQueue.push({
-        priority: Math.random(),
+        priority:
+          change.boundingClientRect.width * change.boundingClientRect.height,
         href: link,
         onLoad: this.handlePrefetchLoad,
         onError: this.handlePrefetchError,
