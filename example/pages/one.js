@@ -1,5 +1,3 @@
-const One = () => (
-  <p>One</p>
-)
+const One = () => <p>One</p>;
 
-export default One
+export default One;

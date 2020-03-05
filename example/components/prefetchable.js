@@ -1,177 +1,181 @@
-import { Component, createRef, Fragment } from 'react'
-import PriorityQueue from '../../src/priority-queue'
+import { Component, createRef, Fragment } from "react";
+import PriorityQueue from "../../src/priority-queue";
 
-// todo
-// const linksPrefetched = new Set()
-const priorityQueue = new PriorityQueue({ compare: (a, b) => {
-  if (a.priority > b.priority) return -1
-  else if (a.priority < b.priority) return 1
-  return 0
-} })
+const priorityQueue = new PriorityQueue({
+  compare: (a, b) => {
+    if (a.priority > b.priority) return -1;
+    else if (a.priority < b.priority) return 1;
+    return 0;
+  }
+});
 
-priorityQueue.subscribe(() => console.log('pq change', JSON.stringify(priorityQueue._data)))
+priorityQueue.subscribe(() =>
+  console.log("pq change", JSON.stringify(priorityQueue._data))
+);
 
 const ghostStyle = {
-  position: 'absolute',
+  position: "absolute",
   width: 0,
   height: 0,
-  visibility: 'hidden',
-  display: 'none'
-}
+  visibility: "hidden",
+  display: "none"
+};
 
-let intersectionObserver
+let intersectionObserver;
 if (process.browser) {
-  window.priorityQueue = priorityQueue
-  intersectionObserver = new IntersectionObserver((changes, observer) => {
-    console.log('changes', changes)
-  }, { threshold: 1 })
+  window.priorityQueue = priorityQueue;
+  intersectionObserver = new IntersectionObserver(
+    (changes, observer) => {
+      console.log("changes", changes);
+    },
+    { threshold: 1 }
+  );
 }
 
-let wasPrefetchRendered = null
+let wasPrefetchRendered = null;
 
-class PrefetchLinks extends Component {
+class PrefetchBlock extends Component {
   state = {
     links: [],
     isPrefetching: false
-  }
-  links = []
+  };
+  // Sometimes we `setState` on links more than once at the same event loop.
+  // React batches `setState` and does shallow copy only, which creates an
+  // inconsistent state for the component.
+  links = [];
 
   constructor() {
-    super()
-    // console.log('aaaaa', priorityQueue)
+    super();
     priorityQueue.subscribe(() => {
-      this.handlePriorityQueueChange()
-    })
+      this.handlePriorityQueueChange();
+    });
+  }
+
+  _getNextFromPriorityQueue() {
+    const topOfQueue = priorityQueue.pop();
+    this.links = [...this.links, topOfQueue];
+    this.setState({ links: [...this.links], isPrefetching: true });
+    topOfQueue.onStart();
   }
 
   componentDidMount() {
     if (priorityQueue.size > 0) {
-      const topOfQueue = priorityQueue.pop()
-      //
-      this.links = [ ...this.links, topOfQueue ]
-      this.setState({ links: [...this.links], isPrefetching: true })
-      topOfQueue.onStart()
+      this._getNextFromPriorityQueue();
     }
   }
 
   handlePrefetchLoad = () => {
-    console.log('load prefetch link')
-    this.state.curOnLoadCallback()
+    console.log("load prefetch link");
+    this.state.curOnLoadCallback();
     if (priorityQueue.size > 0) {
-      const topOfQueue = priorityQueue.pop()
-      //
-      this.links = [ ...this.links, topOfQueue ]
-      this.setState({ links: [ ...this.links ], isPrefetching: true })      
-      topOfQueue.onStart()
+      this._getNextFromPriorityQueue();
     } else {
-      this.setState({ isPrefetching: false })
+      this.setState({ isPrefetching: false });
     }
-  }
+  };
 
-  handlePrefetchError = (error) => {
-    this.state.curOnErrorCallback(error)
-    console.log('prefech link handle erro', error)
+  handlePrefetchError = error => {
+    this.state.curOnErrorCallback(error);
+    console.log("prefech link handle erro", error);
     if (priorityQueue.size > 0) {
-      const topOfQueue = priorityQueue.pop()
-      //
-      this.links = [ ...this.links, topOfQueue ]
-      this.setState({ links: [ ...this.links ], isPrefetching: true})      
-      topOfQueue.onStart()
+      this._getNextFromPriorityQueue();
     } else {
-      this.setState({ isPrefetching: false })
+      this.setState({ isPrefetching: false });
     }
-  }
+  };
 
   handlePriorityQueueChange = () => {
-    console.log('handlePriorityQueueChange')  
+    console.log("handlePriorityQueueChange");
     if (!this.state.isPrefetching && priorityQueue.size > 0) {
-      const topOfQueue = priorityQueue.pop()
-      //
-      this.links = [ ...this.links, topOfQueue ]
-      this.setState({ links: [ ...this.links ], isPrefetching: true })      
-      topOfQueue.onStart()
+      this._getNextFromPriorityQueue();
     }
-  }
+  };
 
   render() {
     if (!process.browser) {
-      return null
+      return null;
     }
-    console.log('rende', this.state)
-    
-    
-    return this.state.links.map(link => <link key={link.href} rel="prefetch" href={link.href} onLoad={link.onLoad} onError={link.onError} />)
+    console.log("rende", this.state);
+
+    return this.state.links.map(link => (
+      <link
+        key={link.key}
+        rel="prefetch"
+        href={link.href}
+        onLoad={link.onLoad}
+        onError={link.onError}
+      />
+    ));
+  }
+}
+
+function getLink(node) {
+  if (node.tagName === "A") {
+    return node.href;
+  }
+
+  const childrenAnchors = Array.from(node.querySelectorAll("a"));
+  if (childrenAnchors.length > 0) {
+    return childrenAnchors[0].href;
   }
 }
 
 class Prefetchable extends Component {
   state = {
     linkToPrefetch: null,
-    prefetchStatus: 'queued'
-  }
+    prefetchStatus: "queued"
+  };
 
-  ref = createRef()
+  ref = createRef();
 
   constructor(props) {
-    super(props)
+    super(props);
   }
 
   componentDidMount() {
-    const domNode = this.ref.current
-    const child = domNode.nextSibling
+    const domNode = this.ref.current;
+    const child = domNode.nextSibling;
+    const link = getLink(child);
+    if (link) {
+      intersectionObserver.observe(child);
 
-    if (child.tagName === 'A') {
-      console.log('wwwww', child.href)
       priorityQueue.push({
         priority: Math.random(),
-        href: child.href,
+        href: link,
         onLoad: this.handlePrefetchLoad,
         onError: this.handlePrefetchError,
-        onStart: this.handlePrefetchStart
-      })
+        onStart: this.handlePrefetchStart,
+        key: Math.random()
+      });
     }
-    Array.from(child.querySelectorAll('a')).forEach(a => {
-      if (!priorityQueue.has(a.href)) {
-        console.log('qqqqq')
-        priorityQueue.push({
-          priority: 4,
-          href: a.href,
-          onLoad: this.handlePrefetchLoad,
-          onError: this.handlePrefetchError,
-          onStart: this.handlePrefetchStart
-        })
-      }
-    })
-
-    intersectionObserver.observe(child)
   }
 
   handlePrefetchStart = () => {
-    console.log('start')
-    this.setState({ prefetchStatus: 'started' })
-  }
+    console.log("start");
+    this.setState({ prefetchStatus: "started" });
+  };
 
   handlePrefetchLoad = () => {
-    console.log('load')
-    this.setState({ prefetchStatus: 'loaded' })
-  }
+    console.log("load");
+    this.setState({ prefetchStatus: "loaded" });
+  };
 
-  handlePrefetchError = (error) => {
-    console.log('error', error.nativeEvent)
-    this.setState({ prefetchStatus: 'error' })
-  }
+  handlePrefetchError = error => {
+    console.log("error", error.nativeEvent);
+    this.setState({ prefetchStatus: "error" });
+  };
 
   render() {
-    const { children } = this.props
-    const { state } = this
+    const { children } = this.props;
+    const { state } = this;
 
     return (
-      <div>
+      <Fragment>
         <div ref={this.ref} style={ghostStyle} />
         {children(state.prefetchStatus)}
-      </div>
-    )
+      </Fragment>
+    );
   }
 }
 
-export { Prefetchable, PrefetchLinks }
+export { Prefetchable, PrefetchBlock };
