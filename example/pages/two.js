@@ -36,7 +36,7 @@ async function swHandshake() {
     }, (...args) => {
       promiseMap.delete(commandId)
       reject(...args)
-    }])
+    }])  
   })
 }
 
@@ -49,8 +49,18 @@ async function sum(a, b) {
   })
 }
 
+async function cache(url) {
+  const id = createId()
+  const sw = getSw()
+  sw.postMessage({ command: 'cache', id, args: [url] })
+  return new Promise((resolve, reject) => {
+    promiseMap.set(id, [resolve, reject])
+  })
+}
+
 if (process.browser) {
   window.sum = sum
+  window.cache = cache
 }
 
 class Two extends Component {
@@ -61,7 +71,7 @@ class Two extends Component {
   }
 
   render() {
-    return 'asdads'
+    return <a href="/one">One</a>
   }
 }
 

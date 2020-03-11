@@ -62,3 +62,7 @@ describe("PriorityQueue.prototype.has", () => {
     expect(pq.has(5)).toEqual(false);
   });
 });
+
+describe('Priority.prototype.subscribe', () => {
+    
+})

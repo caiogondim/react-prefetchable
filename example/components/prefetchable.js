@@ -1,7 +1,12 @@
+// @ts-check
+
 import { Component, createRef, Fragment } from "react";
 import PriorityQueue from "../../src/priority-queue";
 
-const prefetchedElements = new Set();
+function createId() {
+  return `${Math.floor(Math.random() * 1e8)}-${Math.floor(Math.random() * 1e8)}-${Date.now()}`
+}
+
 const priorityQueue = new PriorityQueue({
   compare: (a, b) => {
     if (a.priority > b.priority) return -1;
@@ -9,10 +14,6 @@ const priorityQueue = new PriorityQueue({
     return 0;
   }
 });
-
-priorityQueue.subscribe(() =>
-  console.log("pq change", JSON.stringify(priorityQueue._data))
-);
 
 const ghostStyle = {
   position: "absolute",
@@ -22,82 +23,138 @@ const ghostStyle = {
   display: "none"
 };
 
-class PrefetchBlock extends Component {
-  state = {
-    links: [],
+async function createServiceWorkerProxy() {
+  const promiseMap = new Map()
+
+  const messageChannel = new MessageChannel()
+  messageChannel.port1.onmessage = event => {
+    // console.log('client message received', event)
+    const { result, error, id: commandId } = event.data
+    // console.log('result', result)
+    const[resolve, reject] = promiseMap.get(commandId)
+    if (error) {
+      reject(error)
+    } else {
+      resolve(result)  
+    }
+  }
+  const sw = navigator.serviceWorker.controller
+  if (!sw) {
+    console.warn('No active SW')
+    return null;
+  }
+
+  function handshake() {
+    const commandId = createId()
+    sw.postMessage({ command: 'handshake', id: commandId }, [messageChannel.port2])
+    return new Promise((resolve, reject) => {
+      promiseMap.set(commandId, [(...args) => {
+        promiseMap.delete(commandId)
+        resolve(...args)
+      }, (...args) => {
+        promiseMap.delete(commandId)
+        reject(...args)
+      }])  
+    })
+  }
+  await handshake()
+
+  const commands = {
+    addToCache: url => {
+      const commandId = createId()
+      sw.postMessage({ command: 'add-to-cache', id: commandId, args: [url] })
+      return new Promise((resolve, reject) => {
+        promiseMap.set(commandId, [(...args) => {
+          promiseMap.delete(commandId)
+          resolve(...args)
+        }, (...args) => {
+          promiseMap.delete(commandId)
+          reject(...args)
+        }])  
+      })    
+    }
+  }
+  
+  return commands
+}
+
+class PriorityQueueSubscriber {
+  _state = {
     isPrefetching: false
-  };
-  // Sometimes we `setState` on links more than once at the same event loop.
-  // React batches `setState` and does shallow copy only, which creates an
-  // inconsistent state for the component.
-  links = [];
+  }
+  _args = {
+    priorityQueue: null,
+    swProxy: null
+  }
 
-  constructor() {
-    super();
+  constructor({ priorityQueue, swProxy }) {
+    this._args.priorityQueue = priorityQueue
+    this._args.swProxy = swProxy
+    
     priorityQueue.subscribe(() => {
-      this.handlePriorityQueueChange();
-    });
+      this._handlePriorityQueueChange()
+    })
+
+    if (priorityQueue.size > 0) {
+      this._getNextFromPriorityQueue();
+    }
   }
 
-  _getNextFromPriorityQueue() {
-    const topOfQueue = priorityQueue.pop();
-    this.links = [...this.links, topOfQueue];
-    this.setState({ links: [...this.links], isPrefetching: true });
+  async _getNextFromPriorityQueue() {
+    const topOfQueue = this._args.priorityQueue.pop();
+    this._state.isPrefetching = true
     topOfQueue.onStart();
-  }
-
-  componentDidMount() {
-    if (priorityQueue.size > 0) {
-      this._getNextFromPriorityQueue();
+    try {
+      // console.log('topOfQueue', topOfQueue)
+      await this._args.swProxy.addToCache(topOfQueue.href)
+      topOfQueue.onLoad()
+      this._handlePrefetchLoad()
+    } catch (error) {
+      // console.error('error on caching on sw', error)
+      topOfQueue.onError(error)
+      this._handlePrefetchError(error)
     }
   }
 
-  handlePrefetchLoad = () => {
+  async _handlePrefetchLoad() {
     console.log("load prefetch link");
-    if (priorityQueue.size > 0) {
-      this._getNextFromPriorityQueue();
+    if (this._args.priorityQueue.size > 0) {
+      await this._getNextFromPriorityQueue();
     } else {
-      this.setState({ isPrefetching: false });
+      this._state.isPrefetching = false
     }
   };
 
-  handlePrefetchError = error => {
-    if (priorityQueue.size > 0) {
-      this._getNextFromPriorityQueue();
+  async _handlePrefetchError(error) {
+    console.log("handlePrefetchError");
+    if (this._args.priorityQueue.size > 0) {
+      await this._getNextFromPriorityQueue();
     } else {
-      this.setState({ isPrefetching: false });
+      this._state.isPrefetching = false
     }
   };
 
-  handlePriorityQueueChange = () => {
+  async _handlePriorityQueueChange() {
     console.log("handlePriorityQueueChange");
-    if (!this.state.isPrefetching && priorityQueue.size > 0) {
-      this._getNextFromPriorityQueue();
+    if (!this._state.isPrefetching && this._args.priorityQueue.size > 0) {
+      await this._getNextFromPriorityQueue();
     }
   };
+}
 
-  render() {
-    if (!process.browser) {
-      return null;
-    }
-    console.log("rende", this.state);
-
-    return this.state.links.map(link => (
-      <link
-        key={link.key}
-        rel="prefetch"
-        href={link.href}
-        onLoad={() => {
-          this.handlePrefetchLoad();
-          link.onLoad();
-        }}
-        onError={() => {
-          this.handlePrefetchError();
-          link.onError();
-        }}
-      />
-    ));
+async function handleOnBrowser() {
+  const registration = await navigator.serviceWorker.register('/service-worker.js')
+  console.log('service worker registered', registration)
+  const swProxy = await createServiceWorkerProxy()
+  if (!swProxy) {
+    return
   }
+  const priorityQueueSubscriber = new PriorityQueueSubscriber({ priorityQueue, swProxy })
+}
+
+if (process.browser) {
+  handleOnBrowser()
+  window.priorityQueue = priorityQueue
 }
 
 function getLink(node) {
@@ -176,6 +233,7 @@ class Prefetchable extends Component {
   };
 
   handlePrefetchError = () => {
+    console.log('error')
     this.setState({ prefetchStatus: "error" });
   };
 
@@ -192,4 +250,4 @@ class Prefetchable extends Component {
   }
 }
 
-export { Prefetchable, PrefetchBlock };
+export { Prefetchable };

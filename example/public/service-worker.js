@@ -1,5 +1,7 @@
-console.log('asdsad')
+// use navigation preload: https://developers.google.com/web/updates/2017/02/navigation-preload
+// implement hasSupport / do nothing if no support
 
+const CACHE_NAME = 'cache-nyt-prefetch'
 const portsMap = new Map()
 
 function getPort(event) {
@@ -7,6 +9,28 @@ function getPort(event) {
     return portsMap.get(event.source.id)
   }
 }
+
+let cache = null
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    cache = await caches.open(CACHE_NAME)
+  })())
+})
+
+self.addEventListener('fetch', event => {
+  event.respondWith(async function() {
+    // const cache = await caches.open(CACHE_NAME);
+    const cachedResponse = await cache.match(event.request);
+    if (cachedResponse) {
+      console.log('from cache')
+      return cachedResponse;
+    }
+    const networkResponse = await fetch(event.request);
+    console.log('from network')
+    return networkResponse;
+  }());
+})
 
 self.addEventListener('message', async (event) => {
   console.log('received message', event)
@@ -26,6 +50,10 @@ async function router(event) {
     await handshake(event)
   } else if (command === 'sum') {
     await sum(event)
+  } else if (command === 'add-to-cache') {
+    await addToCache(event)
+  } else if (command === 'ping') {
+    await ping(event)
   }
 }
 
@@ -47,4 +75,36 @@ async function sum(event) {
   const { command, args, id } = event.data
   const port = getPort(event)
   port.postMessage({ id, result: args[0] + args[1] })
+}
+
+async function addToCache(event) {
+  const { id, args } = event.data
+  const [url] = args
+  console.log('url', url)
+  const port = getPort(event)
+  try {
+    const isAlreadyOnCache = await cache.match(url)
+    if (isAlreadyOnCache) {
+      console.log('already on cache')
+      port.postMessage({ id, result: undefined })
+      return  
+    }
+
+    const response = await fetch(url)
+    console.log('response', response)
+    if (!response.ok) {
+      console.error('Error while fetching url')
+      throw new Error('Error while fetching url')
+    }
+    await cache.put(url, response)
+    port.postMessage({ id, result: undefined })
+  } catch (error) {
+    port.postMessage({ id, error})
+  }
+}
+
+async function ping(event) {
+  const {id} = event.data
+  const port = getPort(event)
+  port.postMessage({ id, result: 'pong' })
 }

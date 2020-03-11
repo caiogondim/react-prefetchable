@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
-import { Prefetchable, PrefetchBlock } from "../components/prefetchable";
+import { Prefetchable } from "../components/prefetchable";
 
 const containerStyle = {
   width: "100%",
@@ -33,7 +33,6 @@ function getBackgroundColor(prefetchStatus) {
 const Home = () => (
   <div style={containerStyle}>
     <div style={{ ...rowStyle, height: "600px" }}>
-      <PrefetchBlock />
       <Prefetchable>
         {prefetchStatus => (
           <a
