@@ -1,3 +1,2 @@
-- Use Context to fix case for cluster mode
-- use fetch for hover
-- priority based on pixel square
+- use navigation preload: https://developers.google.com/web/updates/2017/02/navigation-preload
+- implement hasSupport / do nothing if no support

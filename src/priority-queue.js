@@ -1,3 +1,10 @@
+// @ts-check
+
+/**
+ * @param {number} a
+ * @param {number} b
+ * @returns {-1 | 0 | 1}
+ */
 function defaultCompare(a, b) {
   if (a > b) return -1;
   else if (a < b) return 1;
@@ -5,16 +12,41 @@ function defaultCompare(a, b) {
 }
 
 class PriorityQueue {
-  constructor({ compare = defaultCompare } = {}) {
-    this._data = [];
+  /**
+   * @param {Object} options
+   * @param {(a: any, b: any) => -1 | 0 | 1} options.compare
+   */
+  constructor({ compare = defaultCompare } = { compare: defaultCompare }) {
+    /**
+     * @type {(a: any, b: any) => -1 | 0 | 1}
+     * @private
+     */
     this._compare = compare;
+
+    /**
+     * @type {any[]}
+     * @private
+     */
+    this._data = [];
+
+    /**
+     * @type {Function[]}
+     * @private
+     */
     this._subscribers = [];
   }
 
+  /**
+   * @returns {number}
+   */
   get size() {
     return this._data.length;
   }
 
+  /**
+   * @param {any} val
+   * @returns {void}
+   */
   push(val) {
     if (this._data.length === 0) {
       this._data.push(val);
@@ -46,6 +78,10 @@ class PriorityQueue {
     return top;
   }
 
+  /**
+   * @param {any} val
+   * @returns {Boolean}
+   */
   has(val) {
     for (let i = 0; i < this._data.length; i += 1) {
       if (this._compare(this._data[i], val) === 0) return true;
@@ -58,6 +94,10 @@ class PriorityQueue {
     return this._data[0];
   }
 
+  /**
+   * @param {any} val
+   * @returns {Boolean}
+   */
   delete(val) {
     for (let i = 0; i < this._data.length; i += 1) {
       if (this._compare(this._data[i], val) === 0) {
@@ -70,6 +110,10 @@ class PriorityQueue {
     return false;
   }
 
+  /**
+   * @param {Function} next
+   * @returns {Function} unsubscriber
+   */
   subscribe(next) {
     this._subscribers.push(next);
     return () => {

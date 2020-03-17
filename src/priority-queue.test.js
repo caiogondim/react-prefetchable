@@ -63,6 +63,4 @@ describe("PriorityQueue.prototype.has", () => {
   });
 });
 
-describe('Priority.prototype.subscribe', () => {
-    
-})
+describe("Priority.prototype.subscribe", () => {});

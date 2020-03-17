@@ -1,7 +1,9 @@
 import Head from "next/head";
 import Link from "next/link";
+import { CSSProperties } from "react";
 import { Prefetchable } from "../components/prefetchable";
 
+/** @type {CSSProperties} */
 const containerStyle = {
   width: "100%",
   maxWidth: "800px",
@@ -9,6 +11,7 @@ const containerStyle = {
   flexDirection: "column"
 };
 
+/** @type {CSSProperties} */
 const rowStyle = {
   width: "100%",
   position: "relative",
@@ -17,12 +20,17 @@ const rowStyle = {
   marginBottom: "10px"
 };
 
+/** @type {CSSProperties} */
 const linkBaseStyle = {
   display: "block",
   height: "100%",
   transition: "all 0.25s ease-in"
 };
 
+/**
+ * @param {'queued' | 'started' | 'loaded' | 'error'} prefetchStatus
+ * @returns {string}
+ */
 function getBackgroundColor(prefetchStatus) {
   if (prefetchStatus === "queued") return "rgba(0, 0, 0, 0.2)";
   if (prefetchStatus === "started") return "rgba(0, 255, 0, 0.2)";

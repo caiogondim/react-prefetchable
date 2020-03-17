@@ -1,5 +1,4 @@
-// use navigation preload: https://developers.google.com/web/updates/2017/02/navigation-preload
-// implement hasSupport / do nothing if no support
+// @ts-check
 
 const CACHE_NAME = 'cache-nyt-prefetch'
 const portsMap = new Map()
@@ -10,6 +9,9 @@ function getPort(event) {
   }
 }
 
+/**
+ * @type {Cache | null}
+ */
 let cache = null
 
 self.addEventListener('activate', event => {
@@ -20,7 +22,6 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   event.respondWith(async function() {
-    // const cache = await caches.open(CACHE_NAME);
     const cachedResponse = await cache.match(event.request);
     if (cachedResponse) {
       console.log('from cache')
@@ -32,7 +33,7 @@ self.addEventListener('fetch', event => {
   }());
 })
 
-self.addEventListener('message', async (event) => {
+self.addEventListener('message', async (/** @type {MessageEvent} */ event) => {
   console.log('received message', event)
   try {
     await router(event)
@@ -103,6 +104,10 @@ async function addToCache(event) {
   }
 }
 
+/**
+ * @param {MessageEvent} event
+ * @returns {Promise<void>}
+ */
 async function ping(event) {
   const {id} = event.data
   const port = getPort(event)
