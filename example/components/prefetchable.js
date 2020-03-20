@@ -49,9 +49,7 @@ async function createServiceWorkerProxy() {
 
   const messageChannel = new MessageChannel();
   messageChannel.port1.onmessage = event => {
-    // console.log('client message received', event)
     const { result, error, id: commandId } = event.data;
-    // console.log('result', result)
     const [resolve, reject] = promiseMap.get(commandId);
     if (error) {
       reject(error);
@@ -199,23 +197,49 @@ function getLink(node) {
   }
 }
 
+function idle() {
+  if (typeof window === 'undefined') {
+    return Promise.resolve()
+  }
+
+  let requestIdleCallback
+  if (typeof window.requestIdleCallback === 'function') {
+    requestIdleCallback = window.requestIdleCallback
+  } else {
+    requestIdleCallback = (cb) => setTimeout(cb, 1000)
+  }
+
+  return new Promise((resolve) => {
+    requestIdleCallback(() => resolve())
+  })
+}
+
 /**
  * @typedef {Object} PrefetchableState
  * @prop {string | null} linkToPrefetch
- * @prop {'queued' | 'started' | 'loaded' | 'error'} prefetchStatus
+ * @prop {'stale' | 'queued' | 'started' | 'loaded' | 'error'} prefetchStatus
  */
 
 /**
  * @typedef {Object} Props
- * @prop {(prefetchStatus: PrefetchableState['prefetchStatus']) => ReactNode} children
- *
  * @extends {Component<Props>}
+ * @prop {(prefetchStatus: PrefetchableState['prefetchStatus']) => ReactNode} children
+ * @prop {Boolean} [onHover]
+ * @prop {Boolean} [onViewport]
+ * @prop {Function} [startWhen]
  */
 class Prefetchable extends Component {
+  static defaultProps = {
+    onHover: true,
+    onViewport: true,
+    startWhen: idle(),
+    hoverDelay: 50
+  };
+
   /** @type {PrefetchableState} */
   state = {
     linkToPrefetch: null,
-    prefetchStatus: "queued"
+    prefetchStatus: "stale"
   };
 
   ref = createRef();
@@ -226,21 +250,51 @@ class Prefetchable extends Component {
     super(props);
   }
 
-  componentDidMount() {
+  async componentDidMount() {
     const domNode = this.ref.current;
+    const { props } = this;
     this.child = domNode.nextSibling;
 
-    this.intersectionObserver = new IntersectionObserver(
-      this.handleChildViewportIntersection,
-      { threshold: 1 }
-    );
+    if (props.onHover) {
+      this.child.addEventListener("mouseenter", this.handleChildMouseEnter);
+    }
 
-    this.intersectionObserver.observe(this.child);
+    console.log('waiting')
+    await props.startWhen  
+    console.log('after')
+
+    if (props.onViewport) {
+      this.intersectionObserver = new IntersectionObserver(
+        this.handleChildViewportIntersection,
+        { threshold: 1 }
+      );
+
+      this.intersectionObserver.observe(this.child);
+    }
   }
 
   componentWillUnmount() {
-    this.intersectionObserver.unobserve(this.child);
+    this.removeEventListeners();
   }
+
+  handleChildMouseEnter = () => {
+    console.log("mouse enter");
+    const link = getLink(this.child);
+    if (!link) {
+      return;
+    }
+
+    priorityQueue.push({
+      priority: Infinity,
+      href: link,
+      onLoad: this.handlePrefetchLoad,
+      onError: this.handlePrefetchError,
+      onStart: this.handlePrefetchStart,
+      key: Math.random()
+    });
+
+    this.setState({ prefetchStatus: 'queued' })
+  };
 
   handleChildViewportIntersection = changes => {
     console.log("changes", changes);
@@ -249,7 +303,9 @@ class Prefetchable extends Component {
       if (!change.isIntersecting) return;
 
       const link = getLink(this.child);
-      if (!link) return;
+      if (!link) {
+        return;
+      }
 
       console.log("push");
       priorityQueue.push({
@@ -262,7 +318,7 @@ class Prefetchable extends Component {
         key: Math.random()
       });
 
-      this.intersectionObserver.unobserve(this.child);
+      this.setState({ prefetchStatus: 'queued' })
     });
   };
 
@@ -274,11 +330,20 @@ class Prefetchable extends Component {
   handlePrefetchLoad = () => {
     console.log("load");
     this.setState({ prefetchStatus: "loaded" });
+    this.removeEventListeners();
   };
 
   handlePrefetchError = () => {
     console.log("error");
     this.setState({ prefetchStatus: "error" });
+    this.removeEventListeners();
+  };
+
+  removeEventListeners = () => {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.child);
+    }
+    this.child.removeEventListener("mouseenter", this.handleChildMouseEnter);
   };
 
   render() {

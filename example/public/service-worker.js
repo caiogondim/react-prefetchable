@@ -21,16 +21,20 @@ self.addEventListener('activate', event => {
 })
 
 self.addEventListener('fetch', event => {
-  event.respondWith(async function() {
-    const cachedResponse = await cache.match(event.request);
-    if (cachedResponse) {
-      console.log('from cache')
-      return cachedResponse;
-    }
-    const networkResponse = await fetch(event.request);
-    console.log('from network')
-    return networkResponse;
-  }());
+  event.respondWith((async () => {
+      if (!cache) {
+        cache = await caches.open(CACHE_NAME)
+      }
+      
+      const cachedResponse = await cache.match(event.request);
+      if (cachedResponse) {
+        console.log('from cache')
+        return cachedResponse;
+      }
+      const networkResponse = await fetch(event.request);
+      console.log('from network')
+      return networkResponse;
+    })());
 })
 
 self.addEventListener('message', async (/** @type {MessageEvent} */ event) => {

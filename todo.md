@@ -1,2 +1,8 @@
 - use navigation preload: https://developers.google.com/web/updates/2017/02/navigation-preload
 - implement hasSupport / do nothing if no support
+- implement prop startOnResolve to reveive promise
+  - By default satrt on idle
+- Better display fo idea
+  - button tos tart prefetvh
+  - Describe each section
+  - Show color legens (error = red, success = blue, ...)
