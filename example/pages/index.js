@@ -71,6 +71,9 @@ const legendColorStyle = {
 const Home = () => (
   <div style={containerStyle}>
     <h1><code>react-sw-prefetch</code></h1>
+    <h2>What</h2>
+    <h2>Why</h2>
+    <h2>How</h2>
     <p>
       Tries to prefetch assets ahead of time in order to speed rendering of next page.
       Components wrapped in <code>Prefetch</code> that have a link in it's subtree will be prefetch when:
@@ -83,6 +86,7 @@ const Home = () => (
     <ul>
       <li>On mouse hover</li>
     </ul>
+    <h2>Example</h2>
     <p>
       Each background color represents a different state:
     </p>
@@ -191,6 +195,9 @@ const Home = () => (
         )}
       </Prefetchable>
     </div>
+    <h2>FAQ</h2>
+    <h3>When is the cache invalidated?</h3>
+    <p>lorem ipsum</p>
   </div>
 );
 
