@@ -117,6 +117,10 @@ class PriorityQueueSubscriber {
   constructor({ priorityQueue, swProxy }) {
     this.#args.priorityQueue = priorityQueue;
     this.#args.swProxy = swProxy;
+  }
+
+  init() {
+    const { priorityQueue } = this.#args;
 
     priorityQueue.subscribe(() => {
       this._handlePriorityQueueChange();
@@ -177,6 +181,7 @@ async function handleOnBrowser() {
     priorityQueue,
     swProxy
   });
+  priorityQueueSubscriber.init();
 }
 
 if (typeof window !== "undefined") {
@@ -195,20 +200,20 @@ function getLink(node) {
 }
 
 function idle() {
-  if (typeof window === 'undefined') {
-    return Promise.resolve()
+  if (typeof window === "undefined") {
+    return Promise.resolve();
   }
 
-  let requestIdleCallback
-  if (typeof window.requestIdleCallback === 'function') {
-    requestIdleCallback = window.requestIdleCallback
+  let requestIdleCallback;
+  if (typeof window.requestIdleCallback === "function") {
+    requestIdleCallback = window.requestIdleCallback;
   } else {
-    requestIdleCallback = (cb) => setTimeout(cb, 1000)
+    requestIdleCallback = cb => setTimeout(cb, 1000);
   }
 
-  return new Promise((resolve) => {
-    requestIdleCallback(() => resolve())
-  })
+  return new Promise(resolve => {
+    requestIdleCallback(() => resolve());
+  });
 }
 
 /**
@@ -247,7 +252,7 @@ class Prefetchable extends Component {
   child = null;
 
   /** @type {ReturnType<typeof setTimeout>} */
-  timeout = null
+  timeout = null;
 
   constructor(props) {
     super(props);
@@ -263,7 +268,7 @@ class Prefetchable extends Component {
       this.child.addEventListener("mouseleave", this.handleChildMouseLeave);
     }
 
-    await props.startOnResolve  
+    await props.startOnResolve;
 
     if (props.onViewport) {
       this.intersectionObserver = new IntersectionObserver(
@@ -280,12 +285,12 @@ class Prefetchable extends Component {
   }
 
   handleChildMouseEnter = () => {
-     this.timeout = setTimeout(this.queueFetch, this.props.hoverDelay)
+    this.timeout = setTimeout(this.queueFetch, this.props.hoverDelay);
   };
 
   handleChildMouseLeave = () => {
-    clearTimeout(this.timeout)
-  }
+    clearTimeout(this.timeout);
+  };
 
   handleChildViewportIntersection = changes => {
     changes.forEach(change => {
@@ -306,7 +311,7 @@ class Prefetchable extends Component {
         key: Math.random()
       });
 
-      this.setState({ prefetchStatus: 'queued' })
+      this.setState({ prefetchStatus: "queued" });
     });
   };
 
@@ -346,8 +351,8 @@ class Prefetchable extends Component {
       key: Math.random()
     });
 
-    this.setState({ prefetchStatus: 'queued' })
-  }
+    this.setState({ prefetchStatus: "queued" });
+  };
 
   render() {
     const { children } = this.props;
