@@ -142,7 +142,6 @@ class PriorityQueueSubscriber {
   }
 
   async _handlePrefetchLoad() {
-    console.log("load prefetch link");
     if (this.#args.priorityQueue.size > 0) {
       await this._getNextFromPriorityQueue();
     } else {
@@ -151,7 +150,6 @@ class PriorityQueueSubscriber {
   }
 
   async _handlePrefetchError(error) {
-    console.log("handlePrefetchError");
     if (this.#args.priorityQueue.size > 0) {
       await this._getNextFromPriorityQueue();
     } else {
@@ -160,7 +158,6 @@ class PriorityQueueSubscriber {
   }
 
   async _handlePriorityQueueChange() {
-    console.log("handlePriorityQueueChange");
     if (!this.#state.isPrefetching && this.#args.priorityQueue.size > 0) {
       await this._getNextFromPriorityQueue();
     }
@@ -225,9 +222,8 @@ function idle() {
  * @prop {(prefetchStatus: PrefetchableState['prefetchStatus']) => ReactNode} children
  * @prop {Boolean} [onHover]
  * @prop {Boolean} [onViewport]
- * @prop {Function} [startWhen]
  * @prop {Number} [hoverDelay]
- * @prop {Promise<any>} [startWhen]
+ * @prop {Promise<any>} [startOnResolve]
  * @extends {Component<PrefetchableProps>}
  */
 class Prefetchable extends Component {
@@ -235,8 +231,9 @@ class Prefetchable extends Component {
   static defaultProps = {
     onHover: true,
     onViewport: true,
-    startWhen: idle(),
-    hoverDelay: 50
+    startOnResolve: idle(),
+    hoverDelay: 50,
+    children: () => null
   };
 
   /** @type {PrefetchableState} */
@@ -266,9 +263,7 @@ class Prefetchable extends Component {
       this.child.addEventListener("mouseleave", this.handleChildMouseLeave);
     }
 
-    console.log('waiting')
-    await props.startWhen  
-    console.log('after')
+    await props.startOnResolve  
 
     if (props.onViewport) {
       this.intersectionObserver = new IntersectionObserver(
@@ -285,7 +280,6 @@ class Prefetchable extends Component {
   }
 
   handleChildMouseEnter = () => {
-    console.log("mouse enter");
      this.timeout = setTimeout(this.queueFetch, this.props.hoverDelay)
   };
 
@@ -294,8 +288,6 @@ class Prefetchable extends Component {
   }
 
   handleChildViewportIntersection = changes => {
-    console.log("changes", changes);
-
     changes.forEach(change => {
       if (!change.isIntersecting) return;
 
@@ -304,7 +296,6 @@ class Prefetchable extends Component {
         return;
       }
 
-      console.log("push");
       priorityQueue.push({
         priority:
           change.boundingClientRect.width * change.boundingClientRect.height,
@@ -320,18 +311,15 @@ class Prefetchable extends Component {
   };
 
   handlePrefetchStart = () => {
-    console.log("start");
     this.setState({ prefetchStatus: "started" });
   };
 
   handlePrefetchLoad = () => {
-    console.log("load");
     this.setState({ prefetchStatus: "loaded" });
     this.removeEventListeners();
   };
 
   handlePrefetchError = () => {
-    console.log("error");
     this.setState({ prefetchStatus: "error" });
     this.removeEventListeners();
   };

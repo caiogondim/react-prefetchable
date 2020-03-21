@@ -111,7 +111,7 @@ const Home = () => (
     <button onClick={resolveStartWhen} style={buttonStyle}>Click here to start prefetching</button>
     <br />
     <div style={{ ...rowStyle, height: "600px" }}>
-      <Prefetchable startWhen={startWhenpromise} onHover={false}>
+      <Prefetchable startOnResolve={startWhenpromise} onHover={false}>
         {prefetchStatus => (
           <a
             href="/error"
@@ -125,7 +125,7 @@ const Home = () => (
           </a>
         )}
       </Prefetchable>
-      <Prefetchable startWhen={startWhenpromise} onHover={false}>
+      <Prefetchable startOnResolve={startWhenpromise} onHover={false}>
         {prefetchStatus => (
           <a
             href="/one"
