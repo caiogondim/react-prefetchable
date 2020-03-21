@@ -221,14 +221,17 @@ function idle() {
  */
 
 /**
- * @typedef {Object} Props
- * @extends {Component<Props>}
+ * @typedef {Object} PrefetchableProps
  * @prop {(prefetchStatus: PrefetchableState['prefetchStatus']) => ReactNode} children
  * @prop {Boolean} [onHover]
  * @prop {Boolean} [onViewport]
  * @prop {Function} [startWhen]
+ * @prop {Number} [hoverDelay]
+ * @prop {Promise<any>} [startWhen]
+ * @extends {Component<PrefetchableProps>}
  */
 class Prefetchable extends Component {
+  /** @type {PrefetchableProps} */
   static defaultProps = {
     onHover: true,
     onViewport: true,
@@ -246,6 +249,9 @@ class Prefetchable extends Component {
 
   child = null;
 
+  /** @type {ReturnType<typeof setTimeout>} */
+  timeout = null
+
   constructor(props) {
     super(props);
   }
@@ -257,6 +263,7 @@ class Prefetchable extends Component {
 
     if (props.onHover) {
       this.child.addEventListener("mouseenter", this.handleChildMouseEnter);
+      this.child.addEventListener("mouseleave", this.handleChildMouseLeave);
     }
 
     console.log('waiting')
@@ -279,22 +286,12 @@ class Prefetchable extends Component {
 
   handleChildMouseEnter = () => {
     console.log("mouse enter");
-    const link = getLink(this.child);
-    if (!link) {
-      return;
-    }
-
-    priorityQueue.push({
-      priority: Infinity,
-      href: link,
-      onLoad: this.handlePrefetchLoad,
-      onError: this.handlePrefetchError,
-      onStart: this.handlePrefetchStart,
-      key: Math.random()
-    });
-
-    this.setState({ prefetchStatus: 'queued' })
+     this.timeout = setTimeout(this.queueFetch, this.props.hoverDelay)
   };
+
+  handleChildMouseLeave = () => {
+    clearTimeout(this.timeout)
+  }
 
   handleChildViewportIntersection = changes => {
     console.log("changes", changes);
@@ -345,6 +342,24 @@ class Prefetchable extends Component {
     }
     this.child.removeEventListener("mouseenter", this.handleChildMouseEnter);
   };
+
+  queueFetch = () => {
+    const link = getLink(this.child);
+    if (!link) {
+      return;
+    }
+
+    priorityQueue.push({
+      priority: Infinity,
+      href: link,
+      onLoad: this.handlePrefetchLoad,
+      onError: this.handlePrefetchError,
+      onStart: this.handlePrefetchStart,
+      key: Math.random()
+    });
+
+    this.setState({ prefetchStatus: 'queued' })
+  }
 
   render() {
     const { children } = this.props;

@@ -33,7 +33,6 @@ const linkBaseStyle = {
 };
 
 const buttonStyle = {
-  padding: '1rem',
   cursor: 'pointer'
 }
 
@@ -86,12 +85,20 @@ const Home = () => (
     <ul>
       <li>On mouse hover</li>
     </ul>
+
+    <h2><abbr title="Application Programming Interface">API</abbr></h2>
+    <h3>Props</h3>
+    <h4><code>asd</code></h4>
+    <ul>
+      <li>Default: <code>123</code></li>
+    </ul>
+
     <h2>Example</h2>
     <p>
       Each background color represents a different state:
     </p>
     <ul>
-      <li><span style={{ ...legendColorStyle, backgroundColor: getBackgroundColor('stale')}} />Queued</li>
+      <li><span style={{ ...legendColorStyle, backgroundColor: getBackgroundColor('stale')}} />Stale</li>
       <li><span style={{ ...legendColorStyle, backgroundColor: getBackgroundColor('queued')}} />Queued</li>
       <li><span style={{ ...legendColorStyle, backgroundColor: getBackgroundColor('started')}} />Started</li>
       <li><span style={{ ...legendColorStyle, backgroundColor: getBackgroundColor('loaded')}} />Loaded</li>
@@ -135,7 +142,7 @@ const Home = () => (
     </div>
     <p>Below items will start prefetching only on hover, even if <code>startOn</code> was not resolved.</p>
     <div style={{ ...rowStyle, height: "600px" }}>
-      <Prefetchable onViewport={false}>
+      <Prefetchable onViewport={false} hoverDelay={1000}>
         {prefetchStatus => (
           <a
             href="/one"
